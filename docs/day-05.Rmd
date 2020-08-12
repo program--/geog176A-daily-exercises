@@ -1,6 +1,6 @@
 ---
 title: "Daily Exercise 05"
-author: "Mike Johnson"
+author: "Justin Singh-Mohudpur"
 output: html_document
 ---
 
@@ -52,7 +52,10 @@ Use `dplyr` verbs to  create a data.frame of the **5** counties with the most cu
 (**Hint:** `filter`, `arrange`)
 
 ```{r}
-
+covid %>%
+  filter(date == max(date)) %>%
+  arrange(-cases) %>%
+  head(5)
 ```
 
 ## Question 2: 
@@ -62,7 +65,12 @@ Use `dplyr` verbs to create a data.frame of the **5** states with the _most_ cas
 (**Hint:** `filter`, `group_by`, `summarize`, `arrange`)
 
 ```{r}
-
+covid %>%
+  filter(date == max(date)) %>%
+  group_by(state) %>%
+  summarize(currentCases = sum(cases, na.rm = TRUE)) %>%
+  arrange(-currentCases) %>%
+  head(5)
 ```
 
 ## Question 3: 
@@ -72,7 +80,12 @@ Use the `dplyr` verbs to report the **5** counties with the _worst_ current deat
 (**Hint:** `filter`, `mutate`, `arrange`)
 
 ```{r}
-
+covid %>%
+  filter(date == max(date)) %>%
+  mutate(deathRatio = 100*(deaths/cases)) %>%
+  filter(deathRatio != Inf) %>% # Handle dividing by 0
+  arrange(-deathRatio) %>%
+  head(5)
 ```
 
 
@@ -83,7 +96,14 @@ Use the `dplyr` verbs to report the **5** states with the _worst_ current death/
 (**Hint:** `filter`, `group_by`, `summarize`, `mutate`, `arrange`)
 
 ```{r}
-
+covid %>%
+  filter(date == max(date)) %>%
+  group_by(state) %>%
+  summarize(currentCases = sum(cases, na.rm = TRUE), currentDeaths = sum(deaths, na.rm = TRUE)) %>%
+  mutate(deathRatio = 100*(currentDeaths/currentCases)) %>%
+  filter(deathRatio != Inf) %>% # Handle dividing by 0
+  arrange(-deathRatio) %>%
+  head(5)
 ```
 
 
