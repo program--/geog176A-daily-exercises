@@ -1,0 +1,94 @@
+---
+title: "Daily Exercise 16"
+author: "Justin Singh-Mohudpur"
+output: 
+  html_document:
+    code_folding: hide
+    theme: sandstone
+---
+
+```{r setup, warning = FALSE, message = FALSE, include = FALSE}
+# Libraries
+library(tidyverse)
+library(sf)
+library(leaflet)
+library(leafpop)
+```
+  
+# Analyzing Flood-risk Potential Dams
+```{r, warning = FALSE, message = FALSE}
+get_conus_spatial <- function(data, var, proj = 5070, abb = FALSE) {
+    # Filter CONUS from a spatial US dataset and modify its projection.
+    #
+    # Args:
+    #   data: Spatial US dataset to filter.
+    #   var: Column of "data" that contains states' information.
+    #   proj: EPSG code to project dataset to, defaults to EPSG:5070.
+    #   abb: If TRUE, then states in "var" are denoted with abbreviations;
+    #        If FALSE, then states in "var" are denoted by their full names.
+    #
+    # Returns:
+    #   A spatial CONUS dataset projected to given EPSG code.
+    if (abb) {
+        conus <- filter(data,
+            !(get(var)) %in% c("AK", "HI", "PR", "GU"))
+    } else {
+        conus <- filter(data,
+            !(get(var)) %in% c("Alaska", "Hawaii", "Puerto Rico", "Guam"))
+    }
+
+    conus <- sf::st_transform(conus, proj)
+    return(conus)
+}
+
+us_dams <- readxl::read_excel("../data/NID2019_U.xlsx") %>%
+    filter(!is.na(LONGITUDE), !is.na(LATITUDE)) %>%
+    st_as_sf(coords = c("LONGITUDE", "LATITUDE"), crs = 4326) %>%
+    st_transform(5070)
+  
+max_storage_states <- us_dams %>%
+    get_conus_spatial("STATE", abb = TRUE) %>%
+    select(RECORDID, DAM_NAME, COUNTY, HAZARD, NID_STORAGE, STATE, geometry) %>%
+    filter(HAZARD == "H") %>%
+    group_by(STATE) %>%
+    filter(NID_STORAGE == max(NID_STORAGE)) %>%
+    slice(1) %>%
+    ungroup() %>%
+    st_join(us_dams, by = "DAM_NAME", left = TRUE, join = st_equals) %>%
+    st_transform("+proj=longlat +datum=WGS84")
+
+river_systems <- read_sf("../data/MajorRivers/MajorRivers.shp")
+m_river_system <- filter(river_systems, SYSTEM == "Mississippi")
+
+leaflet(max_storage_states) %>%
+    addTiles() %>%
+    addCircleMarkers(
+        radius = (~NID_STORAGE.x / 1500000),
+        color = "red",
+        stroke = FALSE,
+        fillOpacity = 1,
+        clusterOptions = markerClusterOptions(),
+        popup = leafpop::popupTable(
+            setNames(
+                st_drop_geometry(
+                    select(
+                        max_storage_states,
+                        DAM_NAME.x,
+                        NID_STORAGE.x,
+                        PURPOSES,
+                        YEAR_COMPLETED
+                    )
+                ),
+                c("Dam Name", "Storage", "Purposes", "Year Completed")
+            ),
+            row.numbers = FALSE,
+            feature.id = FALSE
+        )
+    ) %>%
+    addPolylines(
+        data = m_river_system,
+        color = "#294adb",
+        weight = 1.5,
+        smoothFactor = 0.5
+    )
+```

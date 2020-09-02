@@ -1,0 +1,39 @@
+---
+title: "Daily Exercise 17"
+author: "Justin Singh-Mohudpur"
+output: 
+  html_document:
+    code_folding: hide
+    theme: sandstone
+---
+
+```{r setup, warning = FALSE, message = FALSE, include = FALSE}
+library(tidyverse)
+library(sf)
+library(raster)
+library(elevatr)
+```
+```{r, warning = FALSE, message = FALSE}
+goleta <- readr::read_csv("../data/uscities.csv") %>%
+    st_as_sf(coords = c("lng", "lat"), crs = 4326) %>%
+    filter(city == "Goleta")
+
+goleta_buffer <- goleta %>%
+    st_transform(5070) %>%
+    st_buffer(5000)
+
+goleta_bbox <- st_bbox(goleta_buffer) %>%
+    st_as_sfc(crs = 5070) %>%
+    st_as_sf()
+
+elevation <- elevatr::get_elev_raster(goleta_bbox, z = 12)
+
+goleta_crop <- raster::crop(elevation, goleta_bbox)
+plot(elevation, main = "Elevation surrounding Goleta")
+plot(st_transform(goleta, 5070), add = TRUE)
+
+```
+
+While looking at this plot, the prominent feature is the Santa Ynez mountains, directly north of Goleta.
+This is shown as the *very* green area on the plot, whereas, we can notice that Goleta, and the area as you get closer to the coast,
+is fairly flat and close to sea-level.
