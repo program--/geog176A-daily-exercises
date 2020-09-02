@@ -1,5 +1,5 @@
 ---
-title: "Daily Exercise 17"
+title: "Daily Exercise 17/18"
 author: "Justin Singh-Mohudpur"
 output: 
   html_document:
@@ -16,24 +16,32 @@ library(elevatr)
 ```{r, warning = FALSE, message = FALSE}
 goleta <- readr::read_csv("../data/uscities.csv") %>%
     st_as_sf(coords = c("lng", "lat"), crs = 4326) %>%
-    filter(city == "Goleta")
-
-goleta_buffer <- goleta %>%
+    filter(city == "Goleta") %>%
     st_transform(5070) %>%
-    st_buffer(5000)
-
-goleta_bbox <- st_bbox(goleta_buffer) %>%
-    st_as_sfc(crs = 5070) %>%
+    st_buffer(5000) %>%
+    st_bbox() %>%
+    st_as_sfc() %>%
     st_as_sf()
 
-elevation <- elevatr::get_elev_raster(goleta_bbox, z = 12)
+elevation <- elevatr::get_elev_raster(goleta, z = 11) %>%
+    raster::crop(goleta)
 
-goleta_crop <- raster::crop(elevation, goleta_bbox)
 plot(elevation, main = "Elevation surrounding Goleta")
-plot(st_transform(goleta, 5070), add = TRUE)
 
 ```
 
 While looking at this plot, the prominent feature is the Santa Ynez mountains, directly north of Goleta.
 This is shown as the *very* green area on the plot, whereas, we can notice that Goleta, and the area as you get closer to the coast,
 is fairly flat and close to sea-level.
+
+```{r, warning = FALSE, message = FALSE}
+compare_value <- function(x) { ifelse(x < 0, NA, 1) }
+
+goleta_land <- calc(elevation, compare_value)
+goleta_land_evel <- goleta_land * elevation
+rcl <- data.frame(0:5 * 100, 1:6 * 100, 0:5)
+reclass_goleta <- reclassify(goleta_land_evel, rcl, include.lowest = TRUE)
+stack(goleta_land, goleta_land_evel, reclass_goleta) %>%
+    setNames(c("Mask", "Elevation", "Topological Bounds")) %>%
+    plot(col = viridis::viridis(256))
+```
