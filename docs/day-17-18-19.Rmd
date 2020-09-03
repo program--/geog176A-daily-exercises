@@ -1,5 +1,5 @@
 ---
-title: "Daily Exercise 17/18"
+title: "Daily Exercise 17/18/19"
 author: "Justin Singh-Mohudpur"
 output: 
   html_document:
@@ -12,6 +12,8 @@ library(tidyverse)
 library(sf)
 library(raster)
 library(elevatr)
+library(osmdata)
+library(leaflet)
 ```
 ```{r, warning = FALSE, message = FALSE}
 goleta <- readr::read_csv("../data/uscities.csv") %>%
@@ -27,7 +29,6 @@ elevation <- elevatr::get_elev_raster(goleta, z = 11) %>%
     raster::crop(goleta)
 
 plot(elevation, main = "Elevation surrounding Goleta")
-
 ```
 
 While looking at this plot, the prominent feature is the Santa Ynez mountains, directly north of Goleta.
@@ -44,4 +45,37 @@ reclass_goleta <- reclassify(goleta_land_evel, rcl, include.lowest = TRUE)
 stack(goleta_land, goleta_land_evel, reclass_goleta) %>%
     setNames(c("Mask", "Elevation", "Topological Bounds")) %>%
     plot(col = viridis::viridis(256))
+```
+
+```{r, warning = FALSE, message = FALSE}
+bb <- goleta %>%
+    st_transform(4326)
+
+osm <- osmdata::opq(bb) %>%
+    add_osm_feature(key = "amenity", value = "restaurant") %>%
+    osmdata_sf()
+
+goleta_restaurants <- osm$osm_points %>%
+    filter(!is.na(name))
+
+# I feel like there's an easier way to do this
+goleta_rest_elev <- goleta_restaurants %>%
+    tibble::rowid_to_column("ID") %>%
+    as.data.frame() %>%
+    left_join(
+        setNames(
+            tibble::rowid_to_column(as.data.frame(raster::extract(projectRaster(elevation, crs = "+proj=longlat +datum=WGS84 +no_defs"), goleta_restaurants))),
+            c("ID", "elevation")
+        ),
+        by = "ID"
+    ) %>%
+    dplyr::select(osm_id, name, elevation, geometry) %>%
+    st_as_sf()
+
+leaflet(goleta_rest_elev) %>%
+    addTiles() %>%
+    addMarkers(
+        popup = ~as.character(elevation),
+        label = ~name
+    )
 ```
