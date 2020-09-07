@@ -30,14 +30,18 @@ iowa <- climateR::getTerraClim(
     stack() %>%
     setNames(params)
 
+plot(stack(iowa$palmer, iowa$water_deficit, iowa$soilm, iowa$prcp), axes = FALSE, box=FALSE)
+
 indices <- which(!is.na(getValues(iowa)))
 
 kmeans_iowa <- iowa %>%
     getValues() %>%
     na.omit() %>%
     scale() %>%
-    kmeans(7)
+    kmeans(9)
 
 iowa_raster <- iowa$palmer
 iowa_raster[indices] <- kmeans_iowa$cluster
+
+plot(iowa_raster, col = blues9, axes = FALSE, box=FALSE, main = "k-means Clustering with k = 9")
 ```
