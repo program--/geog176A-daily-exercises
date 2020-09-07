@@ -1,0 +1,43 @@
+---
+title: "Daily Exercise 20"
+author: "Justin Singh-Mohudpur"
+output: 
+  html_document:
+    code_folding: hide
+    theme: sandstone
+---
+```{r setup, include = FALSE}
+# Libraries
+library(tidyverse)
+library(sf)
+library(climateR)
+library(raster)
+```
+
+```{r, warning = FALSE, message = FALSE}
+# Climate Variables
+params <- c("palmer", "water_deficit", "soilm", "prcp")
+
+# Area of Interest
+AOI <- USAboundaries::us_states() %>%
+    filter(state_name == "Iowa")
+
+iowa <- climateR::getTerraClim(
+    AOI,
+    params,
+    startDate = "2012-10-01"
+) %>%
+    stack() %>%
+    setNames(params)
+
+indices <- which(!is.na(getValues(iowa)))
+
+kmeans_iowa <- iowa %>%
+    getValues() %>%
+    na.omit() %>%
+    scale() %>%
+    kmeans(7)
+
+iowa_raster <- iowa$palmer
+iowa_raster[indices] <- kmeans_iowa$cluster
+```
